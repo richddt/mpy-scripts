@@ -66,7 +66,7 @@ class NfcReader:
         fw_version = await self.reader.pn5180.getFirmwareVersion()
         if 0 == fw_version:
             raise Exception("Failed to communicate with PN5180")
-        await self.reader.start(verbose=verbose)
+        await self.reader.start(verbose=verbose, highspeed=False)
 
     async def reset(self):
         self.rst.value(0)
@@ -170,7 +170,10 @@ class NfcReader:
 
             if tlv.type == NfcTlv.TypeNdef:
                 ndef_bytes = await self.read(offset, tlv.length)
-                return ndef.NdefMessage(ndef_bytes)
+                try:
+                    return ndef.NdefMessage(ndef_bytes)
+                except ndef.InvalidNdef:
+                    break
 
             if tlv.type == NfcTlv.TypeProprietary:
                 offset += tlv.length
@@ -179,7 +182,7 @@ class NfcReader:
             if tlv.type == NfcTlv.TypeTerminator:
                 break
 
-        return None
+        return ndef.NdefMessage()
 
     async def writeNdef(self, ndefmsg):
         """Writes NdefMessage to tag, erasing all existing tag contents"""
@@ -204,6 +207,12 @@ class NfcReader:
         buffer.append(NfcTlv.TypeTerminator)
 
         await self.write(self.tag.header_size, buffer)
+
+    async def writeMessage(self, message):
+        if self.tag is None:
+            raise Exception("No tag")
+
+        await self.reader.writeMessageCmd(message, self.tag.uid)
 
     async def tick(self):
         try:
