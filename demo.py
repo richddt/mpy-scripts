@@ -90,7 +90,8 @@ async def tag_found(reader):
 
 async def render_loop():
     global current_pattern, alpha
-    seg = canopy.Segment(0, 0, 24)
+    # seg = canopy.Segment(0, 0, 24)
+    seg = canopy.Segment(0, 0, 40)
 
     # p = canopy.Pattern(PatternTornado)
 
@@ -124,7 +125,7 @@ async def beacon():
 def button_callback(btn):
     global current_mode
     global current_pattern
-    if btn.pressed:
+    if btn.pressed():
         current_mode = modes[(modes.index(current_mode) + 1) % len(modes)]
         current_pattern = canopy.Pattern(current_mode.pattern)
         print("Switching to mode: ", current_mode.name)
@@ -182,7 +183,7 @@ async def main():
     #     except:
     #         print("Can't open WAV file: ", WAV_FILE)
 
-    canopy.init([fern.LED1_DATA, fern.LED2_DATA], 24)
+    canopy.init([fern.LED1_DATA, fern.LED2_DATA], 200)
     asyncio.create_task(render_loop())
 
     asyncio.create_task(beacon())

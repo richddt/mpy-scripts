@@ -60,6 +60,7 @@ class NfcReader:
         self.event_found = asyncio.Event()
         self.event_lost = asyncio.Event()
         self.lock = asyncio.Lock()
+        self.retries = 1
 
     async def start(self, verbose=False):
         await self.reset()
@@ -223,6 +224,12 @@ class NfcReader:
 
         last_uid = self.tag.uid if self.tag is not None else None
         if current_uid != last_uid:
+            if not current_uid and retries > 0:
+                retries -= 1
+                return
+
+            retries = 1
+
             if not current_uid:
                 self.tag = None
                 self.event_found.clear()
@@ -263,4 +270,4 @@ class NfcReader:
     async def loop(self):
         while True:
             await self.tick()
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.1)
