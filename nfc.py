@@ -224,11 +224,11 @@ class NfcReader:
 
         last_uid = self.tag.uid if self.tag is not None else None
         if current_uid != last_uid:
-            if not current_uid and retries > 0:
-                retries -= 1
+            if not current_uid and self.retries > 0:
+                self.retries -= 1
                 return
 
-            retries = 1
+            self.retries = 1
 
             if not current_uid:
                 self.tag = None
