@@ -104,6 +104,19 @@ def button_callback(btn):
 
 
 async def main():
+    audio_out = I2S(
+        0,
+        sck=Pin(fern.I2S_BCK),
+        ws=Pin(fern.I2S_WS),
+        sd=Pin(fern.I2S_SDOUT),
+        mck=Pin(fern.I2S_MCK),
+        mode=I2S.TX,
+        bits=16,
+        format=I2S.STEREO,
+        rate=16000,
+        ibuf=4000,
+    )
+
     print("Opening NFC reader")
     spi = SPI(
         1, baudrate=7000000, sck=fern.NFC_SCK, mosi=fern.NFC_MOSI, miso=fern.NFC_MISO
@@ -134,18 +147,6 @@ async def main():
     time.sleep_ms(1000)
 
     print("Starting audio loop")
-    audio_out = I2S(
-        0,
-        sck=Pin(fern.I2S_BCK),
-        ws=Pin(fern.I2S_WS),
-        sd=Pin(fern.I2S_SDOUT),
-        mck=Pin(fern.I2S_MCK),
-        mode=I2S.TX,
-        bits=16,
-        format=I2S.STEREO,
-        rate=16000,
-        ibuf=4000,
-    )
     asyncio.create_task(play_audio_loop(audio_out))
 
     asyncio.get_event_loop().run_forever()
