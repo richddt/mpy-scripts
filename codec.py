@@ -134,7 +134,7 @@ def init(i2c, format_len=Format_Len16, adc_input=ADC_AuxIn):
     i2c.writeto(I2C_ADDR, bytearray([0x0D, 0x00]))
     i2c.writeto(I2C_ADDR, bytearray([0x00, 0xC0]))
 
-    time.sleep_ms(250)
+    time.sleep_ms(100)
 
     i2c.writeto(I2C_ADDR, bytearray([0x17, 0x66]))
 

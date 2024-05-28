@@ -5,3 +5,5 @@
 # import knobs
 
 # import mixstation
+
+import dock

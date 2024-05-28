@@ -1,6 +1,7 @@
 from machine import SPI, I2C, Pin
 import fern
 import codec
+import json
 import canopy
 import nfc
 import asyncio
@@ -18,20 +19,22 @@ alpha = tween()
 
 async def tag_found(reader):
     try:
-        print("Tag found ", reader.tag)
+        # print("Tag found ", reader.tag)
+        print(json.dumps({"cmd": "tag_found", "id": reader.tag.uid.hex()}))
         alpha.tween(1, 0.3)
         while True:
             await asyncio.sleep(0.5)
     except asyncio.CancelledError:
         alpha.tween(0, 0.6)
-        print("Tag lost")
+        # print("Tag lost")
+        print(json.dumps({"cmd": "tag_lost"}))
 
 
 async def render_loop():
     seg = canopy.Segment(0, 0, 40)
     pattern = canopy.Pattern(PatternRainbow)
     alpha.tween(0, 0)
-    f = FPS(verbose=True)
+    f = FPS(verbose=False)
     while True:
         f.tick()
         canopy.clear()
@@ -49,7 +52,7 @@ async def main():
     reader = nfc.NfcReader(spi, fern.NFC_NSS, fern.NFC_BUSY, fern.NFC_RST)
     reader.onTagFound(tag_found)
     try:
-        await reader.start(verbose=True)
+        await reader.start(verbose=False)
         asyncio.create_task(reader.loop())
     except Exception as e:
         print("No NFC reader found: ", e)

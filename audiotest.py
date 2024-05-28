@@ -17,6 +17,8 @@ fern.mount_sdcard()
 coin = mixer.Voice("/sd/coin16.wav")
 coin.volume = 0.8
 
+m = mixer.Mixer()
+
 
 async def render_loop():
     s = canopy.Segment(0, 0, 100)
@@ -27,7 +29,7 @@ async def render_loop():
         canopy.clear()
         canopy.draw(s, pattern)
         canopy.render()
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.001)
 
 
 # async def continuous_play(audio_out):
@@ -72,37 +74,22 @@ async def render_loop():
 
 
 async def continuous_play(audio_out):
-    global coin
     swriter = asyncio.StreamWriter(audio_out)
-    wav_samples = bytearray(10000)
+    wav_samples = bytearray(4096)
     wav_samples_mv = memoryview(wav_samples)
-    w = open("/sd/bg.wav", "rb")
-    voice = mixer.Voice(w)
+    # w = open("/sd/bg.wav", "rb")
+    voice = mixer.Voice("/sd/bg.wav")
     voice.loop = True
     voice.volume = 1.0
     voice.play()
-    # mixer.play(voice)
-    # mixer.play(coin)
 
-    vs = mixer.voices()
-    # vs.append(voice)
-    coin.playing = False
-    vs.append(coin)
-    # mixer.play("/sd/bg.wav")
-    # voices = [voice, coin]
-
-    # reader = asyncio.StreamReader(sys.stdin)
+    m.play(voice)
 
     print("Added voices")
 
     while True:
-        # ch = await reader.read()
-        # if "c" == ch:
-        #     print("Playing coin")
-        #     coin.stop()
-        #     coin.play()
-        # mixer.mixinto(voices, wav_samples_mv)
-        mixer.mixintotest(wav_samples_mv)
+        print(m.voices())
+        m.mixinto(wav_samples_mv)
         # apply temporary workaround to eliminate heap allocation in uasyncio Stream class.
         # workaround can be removed after acceptance of PR:
         #    https://github.com/micropython/micropython/pull/7868
@@ -123,10 +110,9 @@ async def encoder_loop(ss):
 
 
 def button_callback(btn):
-    global coin
     if btn.pressed():
         print("Playing coin")
-        coin.play()
+        m.play(coin)
 
 
 async def main():
@@ -143,14 +129,15 @@ async def main():
     # except:
     #     print("No encoder found")
 
-    canopy.init([fern.LED1_DATA, fern.LED2_DATA], 100)
-    canopy.clear()
-    canopy.render()
+    # canopy.init([fern.LED1_DATA, fern.LED2_DATA], 100)
+    # canopy.clear()
+    # canopy.render()
 
     audio_out = None
 
     print("Initing codec")
     codec.init(i2c)
+    time.sleep_ms(1000)
     # codec.dumpregisters(i2c)
 
     print("Initing I2S audio out")
@@ -169,7 +156,7 @@ async def main():
 
     asyncio.create_task(continuous_play(audio_out))
 
-    asyncio.create_task(render_loop())
+    # asyncio.create_task(render_loop())
     asyncio.get_event_loop().run_forever()
 
 
