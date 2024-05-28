@@ -139,7 +139,7 @@ class NfcReader:
 
         # read CC, which is either 4 or 8 bytes. Lets assume 4 for now to keep it simple
         header = await self.read(0, 8)
-        if header[0] not in [0xE1, 0xE2] or header[1] & 0xFC != 0x40:
+        if len(header) < 4 or header[0] not in [0xE1, 0xE2] or header[1] & 0xFC != 0x40:
             if format:
                 await self.format()
             else:
