@@ -39,15 +39,18 @@ tags = {}
 broadcaster = espnow.ESPNow()
 bcast = b"\xFF" * 6
 
+audio_enabled = False
+
 try:
     fern.mount_sdcard()
+    m = mixer.Mixer()
+    VoiceActive = None
+    VoiceBG = mixer.Voice("/sd/0_JapGarden.wav")
+    VoiceBG.loop = True
+    audio_enabled = True    
 except Exception as e:
-    print("No SD card found: ", e)
+    print("No SD card found, no audio support on this device")
 
-m = mixer.Mixer()
-VoiceBG = mixer.Voice("/sd/0_JapGarden.wav")
-VoiceBG.loop = True
-VoiceActive = None
 
 ActiveVolume = tween(0)
 
@@ -68,6 +71,9 @@ def play_pixelblaze_pattern(pattern):
     PixelBlazePin3.value(p3)
 
 def play_active_sound(path):
+    if not audio_enabled:
+        return
+    
     global VoiceActive
     if VoiceActive:
         VoiceActive.stop()
@@ -84,7 +90,7 @@ def play_active_sound(path):
 def tag_scanned(controller_id, tag_id):
     tags[controller_id] = (tag_id, time.ticks_ms())
     
-    if tag_id is None:
+    if tag_id in [None, b'\x00']:
         print("[{0}] Tag lost".format(controller_id))
     else:
         print("[{0}] Tag found {1}".format(controller_id, tag_id))
@@ -124,7 +130,7 @@ async def tag_found(reader):
             await asyncio.sleep(0.5)
     except asyncio.CancelledError:
         tag_scanned(mac, None)
-        broadcaster.send(bcast, None)
+        broadcaster.send(bcast, b'\x00')
 
 
 # remote tag found
@@ -165,19 +171,6 @@ def button_callback(btn):
 
 
 async def main():
-    audio_out = I2S(
-        0,
-        sck=Pin(fern.I2S_BCK),
-        ws=Pin(fern.I2S_WS),
-        sd=Pin(fern.I2S_SDOUT),
-        mck=Pin(fern.I2S_MCK),
-        mode=I2S.TX,
-        bits=16,
-        format=I2S.STEREO,
-        rate=16000,
-        ibuf=4000,
-    )
-
     print("Opening NFC reader")
     spi = SPI(
         1, baudrate=7000000, sck=fern.NFC_SCK, mosi=fern.NFC_MOSI, miso=fern.NFC_MISO
@@ -196,19 +189,28 @@ async def main():
     broadcaster.add_peer(bcast)
     asyncio.create_task(receiver_loop())
 
-    print("Opening Audio Codec")
-    i2c = I2C(0, scl=fern.I2C_SCL, sda=fern.I2C_SDA, freq=100000)
-    i2c.scan()
+    if audio_enabled:
+        print("Starting audio")
+        audio_out = I2S(
+            0,
+            sck=Pin(fern.I2S_BCK),
+            ws=Pin(fern.I2S_WS),
+            sd=Pin(fern.I2S_SDOUT),
+            mck=Pin(fern.I2S_MCK),
+            mode=I2S.TX,
+            bits=16,
+            format=I2S.STEREO,
+            rate=16000,
+            ibuf=4000,
+        )
+
+        i2c = I2C(0, scl=fern.I2C_SCL, sda=fern.I2C_SDA, freq=100000)
+        i2c.scan()
+        time.sleep_ms(100)
+        codec.init(i2c)
+        asyncio.create_task(play_audio_loop(audio_out))
 
     btn = DebouncedInput(fern.D8, button_callback, Pin.PULL_UP, False, 50)
-
-    time.sleep_ms(100)
-    codec.init(i2c)
-    # seems to be a good idea to sleep a bit after initing the codec
-    time.sleep_ms(1000)
-
-    print("Starting audio loop")
-    asyncio.create_task(play_audio_loop(audio_out))
 
     asyncio.get_event_loop().run_forever()
 
