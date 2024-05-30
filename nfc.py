@@ -132,8 +132,9 @@ class NfcReader:
 
         self.tag.header_size = 4
         self.tag.mem_size = mem_size * 8
+        return header
 
-    async def _readHeader(self, format=True):
+    async def _readHeader(self, format=False):
         if self.tag is None:
             raise NfcTagLost()
 
@@ -141,7 +142,7 @@ class NfcReader:
         header = await self.read(0, 8)
         if len(header) < 4 or header[0] not in [0xE1, 0xE2] or header[1] & 0xFC != 0x40:
             if format:
-                await self.format()
+                header = await self.format()
             else:
                 raise NfcTagNotFormatted()
 
@@ -245,10 +246,16 @@ class NfcReader:
                     self.lock.release()
 
                 if info:
-                    self.tag = NfcTag(current_uid, info.block_size, info.num_blocks)
-                    await self._readHeader()
-                    self.event_lost.clear()
-                    self.event_found.set()
+                    try:
+                        self.tag = NfcTag(current_uid, info.block_size, info.num_blocks)
+                        await self._readHeader()
+                        self.event_lost.clear()
+                        self.event_found.set()
+                    except:
+                        # error reading tag, reset state and try again
+                        self.tag = None
+                        self.event_found.clear()
+                        self.event_lost.set()
 
     def onTagFound(self, callback):
         # create a task to launch a callback task and cancel it when tag is lost
