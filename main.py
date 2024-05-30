@@ -6,4 +6,6 @@
 
 # import mixstation
 
-import dock
+# import dock
+
+import rich

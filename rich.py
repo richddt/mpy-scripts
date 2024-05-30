@@ -21,11 +21,12 @@ PixelBlazePin3 = Pin(fern.D3)
 #----------------------------------------------------------------------------
 
 # dictionary of tag combos -> (path, pixelblaze pattern)
+# eg,: set("id1", "id2", "id3"): ("path1", 1),
 
 tag_combos = {
-    set("id1", "id2", "id3"): ("path1", 1),
-    set("id4", "id5", "id6"): ("path2", 2),
-    set("id7", "id8", "id9"): ("path3", 3),
+    set("39bf3144080104e0", "ebc43144080104e0", "55ca3144080104e0"): ("/sd/1_DeepOcean.wav", 1),
+    set("16d43144080104e0", "5ecf3144080104e0", "65d83144080104e0"): ("/sd/2_Crickets.wav", 2),
+    set("39bf3144080104e0", "55ca3144080104e0", "5ecf3144080104e0"): ("/sd/3_Rainy.wav", 3),
 }
 
 
