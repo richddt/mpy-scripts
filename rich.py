@@ -20,16 +20,14 @@ PixelBlazePin3 = Pin(fern.D3)
 
 #----------------------------------------------------------------------------
 
-# dictionary of tag combos -> (path, pixelblaze pattern)
-# eg,: set("id1", "id2", "id3"): ("path1", 1),
+# list of (combo, path, pixelblaze pattern)
+# eg,: (set(["id1", "id2", "id3"]), "path1", 1),
 
-tag_combos = {
-    set("39bf3144080104e0", "ebc43144080104e0", "55ca3144080104e0"): ("/sd/1_DeepOcean.wav", 1),
-    set("16d43144080104e0", "5ecf3144080104e0", "65d83144080104e0"): ("/sd/2_Crickets.wav", 2),
-    set("39bf3144080104e0", "55ca3144080104e0", "5ecf3144080104e0"): ("/sd/3_Rainy.wav", 3),
-}
-
-
+tag_combos = [
+    (set(["39bf3144080104e0", "ebc43144080104e0", "55ca3144080104e0"]), "/sd/1_DeepOcean.wav", 1),
+    (set(["16d43144080104e0", "5ecf3144080104e0", "65d83144080104e0"]), "/sd/2_Crickets.wav", 2),
+    (set(["39bf3144080104e0", "55ca3144080104e0", "5ecf3144080104e0"]), "/sd/3_Rainy.wav", 3),
+]
 
 
 #----------------------------------------------------------------------------
@@ -104,12 +102,12 @@ def tag_scanned(controller_id, tag_id):
 
     if len(current_tags) == 3:
         print("Three tags scanned: ", current_tags)
-        if current_tags in tag_combos:
-            path, pattern = tag_combos[current_tags]
-            print("Found match! playing pattern {0} and sound {1}".format(pattern, path))
-            play_pixelblaze_pattern(pattern)
-            play_active_sound(path)
-            return
+        for combo, path, pattern in tag_combos:
+            if current_tags == combo:
+                print("Found match! playing pattern {0} and sound {1}".format(pattern, path))
+                play_pixelblaze_pattern(pattern)
+                play_active_sound(path)
+                return
 
     # no match, just do background things
     play_pixelblaze_pattern(0)
