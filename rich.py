@@ -7,12 +7,31 @@ import espnow
 import time
 import network
 import mixer
+from tween import tween
 from debounced_input import DebouncedInput
+
+TAG_SCANNED_WINDOW = 3000  # 3 seconds
+AUDIO_CROSSFADE_TIME = 0.5
 
 # pixelblaze GPIO
 PixelBlazePin1 = Pin(fern.D1)
 PixelBlazePin2 = Pin(fern.D2)
 PixelBlazePin3 = Pin(fern.D3)
+
+#----------------------------------------------------------------------------
+
+# dictionary of tag combos -> (path, pixelblaze pattern)
+
+tag_combos = {
+    set("id1", "id2", "id3"): ("path1", 1),
+    set("id4", "id5", "id6"): ("path2", 2),
+    set("id7", "id8", "id9"): ("path3", 3),
+}
+
+
+
+
+#----------------------------------------------------------------------------
 
 # keep track of tags from all controllers. dictionary keyed by controller id, value is tag id & timestamp
 tags = {}
@@ -21,51 +40,92 @@ tags = {}
 broadcaster = espnow.ESPNow()
 bcast = b"\xFF" * 6
 
-TAG_SCANNED_WINDOW = 3000  # 3 seconds
-
-m = mixer.Mixer()
-
-
 try:
     fern.mount_sdcard()
 except Exception as e:
     print("No SD card found: ", e)
 
+m = mixer.Mixer()
+VoiceBG = mixer.Voice("/sd/0_JapGarden.wav")
+VoiceBG.loop = True
+VoiceActive = None
 
-# gets called when a tag is scanned locally, or remotely via ESPNow
+ActiveVolume = tween(0)
+
+def play_pixelblaze_pattern(pattern):
+    p1, p2, p3 = {
+        0: (0, 0, 0),
+        1: (1, 0, 0),
+        2: (0, 1, 0),
+        3: (1, 1, 0),
+        4: (0, 0, 1),
+        5: (1, 0, 1),
+        6: (0, 1, 1),
+        7: (1, 1, 1),
+    }.get(pattern, (0, 0, 0))
+
+    PixelBlazePin1.value(p1)
+    PixelBlazePin2.value(p2)
+    PixelBlazePin3.value(p3)
+
+def play_active_sound(path):
+    global VoiceActive
+    if VoiceActive:
+        VoiceActive.stop()
+    VoiceActive = mixer.Voice(path)
+    VoiceActive.loop = True
+    VoiceActive.volume = 0.0
+    m.play(VoiceActive)
+
+    # crossfade to active sound over 0.5 second
+    ActiveVolume.tween(1.0, AUDIO_CROSSFADE_TIME)
+
+# gets called when a tag is scanned locally, or remotely via ESPNow. Gets called with
+# tag_id=None when a tag is lost
 def tag_scanned(controller_id, tag_id):
     tags[controller_id] = (tag_id, time.ticks_ms())
-    print("[{0}] Tag found {1}".format(controller_id, tag_id))
+    
+    if tag_id is None:
+        print("[{0}] Tag lost".format(controller_id))
+    else:
+        print("[{0}] Tag found {1}".format(controller_id, tag_id))
 
     # loop through the tags and determine if we have a match
-    count = 0
+    current_tags = set()
     for controller, tag in tags.items():
         # not scanned recently? skip
         if time.ticks_diff(time.ticks_ms(), tag[1]) > TAG_SCANNED_WINDOW:
+            continue
+        if tag[0] is None:
+            continue
+
+        current_tags.add(tag[0])
+
+    if len(current_tags) == 3:
+        print("Three tags scanned: ", current_tags)
+        if current_tags in tag_combos:
+            path, pattern = tag_combos[current_tags]
+            print("Found match! playing pattern {0} and sound {1}".format(pattern, path))
+            play_pixelblaze_pattern(pattern)
+            play_active_sound(path)
             return
-        else:
-            count += 1
 
-    if count == 3:
-        print("Three tags scanned within the scan window, HOORAY")
-        # do something here. look up the IDs in a table? play a sound? signal to pixelblaze? etc.
-        # coolsound.play()
-        # PixelBlazePin1.value(0)
-        # PixelBlazePin2.value(1)
-        # PixelBlazePin3.value(0)
-
+    # no match, just do background things
+    play_pixelblaze_pattern(0)
+    ActiveVolume.tween(0.0, AUDIO_CROSSFADE_TIME)
 
 # local tag found
 async def tag_found(reader):
+    mac = network.WLAN(network.STA_IF).config("mac").hex()
     try:
-        mac = network.WLAN(network.STA_IF).config("mac").hex()
         tag_scanned(mac, reader.tag.uid.hex())
         broadcaster.send(bcast, reader.tag.uid)
 
         while True:
             await asyncio.sleep(0.5)
     except asyncio.CancelledError:
-        print("Tag lost")
+        tag_scanned(mac, None)
+        broadcaster.send(bcast, None)
 
 
 # remote tag found
@@ -73,8 +133,8 @@ async def receiver_loop():
     while True:
         try:
             sender, tag_id = broadcaster.recv(0)
-            if sender is not None and tag_id is not None:
-                tag_scanned(sender.hex(), tag_id.hex())
+            if sender is not None:
+                tag_scanned(sender.hex(), tag_id.hex() if tag_id is not None else None)
         except Exception as e:
             print("Error receiving tag: ", e)
         await asyncio.sleep(0.2)
@@ -85,14 +145,16 @@ async def play_audio_loop(audio_out):
     wav_samples = bytearray(4096)
     wav_samples_mv = memoryview(wav_samples)
 
-    voice = mixer.Voice("/sd/bg.wav")
-    voice.loop = True
-    voice.volume = 1.0
-    voice.play()
-
-    m.play(voice)
+    m.play(VoiceBG)
 
     while True:
+        VoiceBG.volume = 1.0 - float(ActiveVolume)
+
+        if VoiceActive and VoiceActive not in m.voices():
+            m.play(VoiceActive)
+        if VoiceActive:
+            VoiceActive.volume = float(ActiveVolume)
+
         m.mixinto(wav_samples_mv)
         swriter.out_buf = wav_samples_mv[:]
         await swriter.drain()
