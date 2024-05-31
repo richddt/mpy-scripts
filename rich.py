@@ -90,7 +90,7 @@ def play_active_sound(path):
 def tag_scanned(controller_id, tag_id):
     tags[controller_id] = (tag_id, time.ticks_ms())
     
-    if tag_id in [None, b'\x00']:
+    if tag_id in [None, '00']:
         print("[{0}] Tag lost".format(controller_id))
     else:
         print("[{0}] Tag found {1}".format(controller_id, tag_id))
@@ -99,8 +99,8 @@ def tag_scanned(controller_id, tag_id):
     current_tags = set()
     for controller, tag in tags.items():
         # not scanned recently? skip
-        if time.ticks_diff(time.ticks_ms(), tag[1]) > TAG_SCANNED_WINDOW:
-            continue
+#        if time.ticks_diff(time.ticks_ms(), tag[1]) > TAG_SCANNED_WINDOW:
+#            continue
         if tag[0] is None:
             continue
 
