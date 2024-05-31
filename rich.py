@@ -14,9 +14,18 @@ TAG_SCANNED_WINDOW = 3000  # 3 seconds
 AUDIO_CROSSFADE_TIME = 0.5
 
 # pixelblaze GPIO
-PixelBlazePin1 = Pin(fern.D1)
-PixelBlazePin2 = Pin(fern.D2)
-PixelBlazePin3 = Pin(fern.D3)
+PixelBlazePin1 = Pin(fern.D1, Pin.OUT)
+PixelBlazePin2 = Pin(fern.D2, Pin.OUT)
+PixelBlazePin3 = Pin(fern.D3, Pin.OUT)
+
+PixelBlazePin1.value(0)
+PixelBlazePin2.value(0)
+PixelBlazePin3.value(0)
+
+print("init D1 =", PixelBlazePin1.value())
+print("init D2 =", PixelBlazePin2.value())
+print("init D3 =", PixelBlazePin3.value())
+
 
 # ----------------------------------------------------------------------------
 
@@ -66,22 +75,27 @@ active_voice_path = None
 VoiceActive = None
 ActiveVolume = tween(0)
 
-
+# set 3x PixelBlaze GPIO pins, based on 3-byte values (HIGH=1, LOW=0) 
 def play_pixelblaze_pattern(pattern):
     p1, p2, p3 = {
         0: (0, 0, 0),
-        1: (1, 0, 0),
+        1: (0, 0, 1),
         2: (0, 1, 0),
-        3: (1, 1, 0),
-        4: (0, 0, 1),
+        3: (0, 1, 1),
+        4: (1, 0, 0),
         5: (1, 0, 1),
-        6: (0, 1, 1),
+        6: (1, 1, 0),
         7: (1, 1, 1),
     }.get(pattern, (0, 0, 0))
 
     PixelBlazePin1.value(p1)
     PixelBlazePin2.value(p2)
     PixelBlazePin3.value(p3)
+    
+    # debug PIN values
+    # print("D1 =", PixelBlazePin1.value())
+    # print("D2 =", PixelBlazePin2.value())
+    # print("D3 =", PixelBlazePin3.value())
 
 
 def play_active_sound(path):
@@ -167,7 +181,7 @@ async def receiver_loop():
         try:
             sender, tag_id = broadcaster.recv(0)
             if sender is not None:
-                tag_scanned(sender.hex(), tag_id.hex() if tag_id is not one else None)
+                tag_scanned(sender.hex(), tag_id.hex() if tag_id is not None else None)
         except Exception as e:
             print("Error receiving tag: ", e)
         await asyncio.sleep(0.2)
