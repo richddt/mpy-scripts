@@ -138,15 +138,17 @@ class NfcReader:
         if self.tag is None:
             raise NfcTagLost()
 
+        self.tag.header_size = 0
+        self.tag.mem_size = 0
+
         # read CC, which is either 4 or 8 bytes. Lets assume 4 for now to keep it simple
         header = await self.read(0, 8)
         if len(header) < 4 or header[0] not in [0xE1, 0xE2] or header[1] & 0xFC != 0x40:
             if format:
                 header = await self.format()
             else:
-                raise NfcTagNotFormatted()
+                return
 
-        # read TLV chunks until we find one with an Ndef message
         header_size = 4
         mem_size = header[2]
         if mem_size == 0:
