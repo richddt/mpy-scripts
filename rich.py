@@ -505,7 +505,8 @@ async def receiver_loop():
 
 async def play_audio_loop(audio_out):
     swriter = asyncio.StreamWriter(audio_out)
-    wav_samples = bytearray(4096)
+    wav_samples = bytearray(5120)
+    # bytearray was originally 4096
     wav_samples_mv = memoryview(wav_samples)
 
     m.play(VoiceBG)
@@ -558,8 +559,10 @@ async def main():
             mode=I2S.TX,
             bits=16,
             format=I2S.STEREO,
-            rate=16000,
-            ibuf=4000,
+            rate=44100,
+            ibuf=10240,
+            # rate was originally 16000
+            # ibuf was originally 4000
         )
 
         i2c = I2C(0, scl=fern.I2C_SCL, sda=fern.I2C_SDA, freq=100000)
