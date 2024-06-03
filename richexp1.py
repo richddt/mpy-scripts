@@ -567,9 +567,12 @@ def is_match(tags, combo):
 def tag_scanned(controller_id, tag_id):
     global active_voice_path
 
+    if tag_id == "00":
+        tag_id = None
+        
     tags[controller_id] = (tag_id, time.ticks_ms())
 
-    if tag_id in [None, "00"]:
+    if tag_id is None:
         print("[{0}] Tag lost".format(controller_id))
     else:
         print("[{0}] Tag found {1}".format(controller_id, tag_id))
