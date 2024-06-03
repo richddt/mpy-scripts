@@ -8,4 +8,6 @@
 
 # import dock
 
-import rich
+# import rich
+
+import richexp1
