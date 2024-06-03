@@ -578,16 +578,7 @@ def tag_scanned(controller_id, tag_id):
         print("[{0}] Tag found {1}".format(controller_id, tag_id))
 
     # loop through the tags and determine if we have a match
-    current_tags = set()
-    for controller, tag in tags.items():
-        # not scanned recently? skip
-        #        if time.ticks_diff(time.ticks_ms(), tag[1]) > TAG_SCANNED_WINDOW:
-        #            continue
-        if tag[0] is None:
-            continue
-
-        current_tags.add(tag[0])
-
+    current_tags = [tag_id for tag_id, timestamp in tags.values() if tag_id is not None]
     if len(current_tags) == 3:
         print("Three tags scanned: ", current_tags)
         for combo, path, pattern in tag_combos:
