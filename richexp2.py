@@ -1,3 +1,4 @@
+#this script works
 from machine import SPI, I2C, Pin, I2S
 import fern
 import codec
