@@ -1,8 +1,9 @@
 import seesaw
 from tween import tween
+from machine import Pin
 
 
-class RotaryEncoder:
+class RotaryEncoder(object):
     BaseAddr = 0x36
     ButtonPin = 24
 
@@ -45,6 +46,23 @@ class RotaryEncoder:
         #     self._button = new_button
         #     if new_button == 0:
         #         print("Button pressed")
+
+    @property
+    def value(self):
+        return self._value
+
+
+class RotarySwitch(object):
+    def __init__(self, pins):
+        self.state = 0
+        self.pins = [Pin(p, Pin.IN, Pin.PULL_UP) for p, v in pins]
+        self.values = [v for p, v in pins]
+        self._value = self.values[0]
+
+    def tick(self):
+        for i, p in enumerate(self.pins):
+            if p.value() == 0:
+                self._value = self.values[i]
 
     @property
     def value(self):
