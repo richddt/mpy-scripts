@@ -138,6 +138,9 @@ class NfcReader:
         if self.tag is None:
             raise NfcTagLost()
 
+        if self.tag.header_size > 0:
+            return
+
         self.tag.header_size = 0
         self.tag.mem_size = 0
 
@@ -163,6 +166,10 @@ class NfcReader:
         if self.tag is None:
             raise NfcTagLost()
 
+        ret = ndef.NdefMessage()
+
+        await self._readHeader()
+
         if self.tag.header_size == 0:
             raise NfcTagNotFormatted()
 
@@ -175,7 +182,8 @@ class NfcReader:
             if tlv.type == NfcTlv.TypeNdef:
                 ndef_bytes = await self.read(offset, tlv.length)
                 try:
-                    return ndef.NdefMessage(ndef_bytes)
+                    ret = ndef.NdefMessage(ndef_bytes)
+                    break
                 except ndef.InvalidNdef:
                     break
 
@@ -186,7 +194,7 @@ class NfcReader:
             if tlv.type == NfcTlv.TypeTerminator:
                 break
 
-        return ndef.NdefMessage()
+        return ret
 
     async def writeNdef(self, ndefmsg):
         """Writes NdefMessage to tag, erasing all existing tag contents"""
@@ -200,9 +208,8 @@ class NfcReader:
         if len(ndef_bytes) > 255:
             raise NotImplemented("No support for long ndef messages")
 
-        # format the tag if we need to
-        if self.tag.header_size == 0:
-            await self.readHeader(format=True)
+        # format the tag if we need to (this is a no-op if already formatted)
+        await self._readHeader(format=True)
 
         buffer = []
         buffer.append(NfcTlv.TypeNdef)
@@ -212,16 +219,37 @@ class NfcReader:
 
         await self.write(self.tag.header_size, buffer)
 
+    async def enableMailbox(self, enabled=True):
+        if self.tag is None:
+            raise NfcTagLost()
+
+        try:
+            await self.lock.acquire()
+            await self.reader.writeDynamicConfigurationCmd(
+                0x0D, 1 if enabled else 0, self.tag.uid
+            )
+        finally:
+            self.lock.release()
+
     async def writeMessage(self, message):
         if self.tag is None:
             raise Exception("No tag")
 
-        await self.reader.writeMessageCmd(message, self.tag.uid)
+        try:
+            await self.lock.acquire()
+            await self.reader.writeMessageCmd(message, self.tag.uid)
+        finally:
+            self.lock.release()
 
     async def tick(self):
+        current_uid = None
         try:
             await self.lock.acquire()
             current_uid, err = await self.reader.inventoryCmd()
+        except Exception as e:
+            # reader error, reset state and try again
+            print("Attempting to reset NFC reader: ", e)
+            await self.reader.start()
         finally:
             self.lock.release()
 
@@ -233,24 +261,29 @@ class NfcReader:
 
             self.retries = 1
 
-            if not current_uid:
+            # handle losing a tag
+            if last_uid:
                 self.tag = None
                 self.event_found.clear()
                 self.event_lost.set()
 
+            # handle finding a tag
             if current_uid:
                 # read tag info
                 info = None
                 try:
                     await self.lock.acquire()
                     info, err = await self.reader.getSystemInformationCmd(current_uid)
+                except:
+                    pass
                 finally:
                     self.lock.release()
 
                 if info:
                     try:
                         self.tag = NfcTag(current_uid, info.block_size, info.num_blocks)
-                        await self._readHeader()
+                        # commented this out so the tag found callback gets called faster
+                        # await self._readHeader()
                         self.event_lost.clear()
                         self.event_found.set()
                     except:
