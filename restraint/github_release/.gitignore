@@ -1,0 +1,28 @@
+# Host/editor output
+__pycache__/
+*.py[cod]
+.DS_Store
+.vscode/
+.idea/
+.venv/
+
+# Runtime state: never publish or deploy these files
+/restraint_maintenance.flag
+/restraint_run.lock
+/restraint_run.lock.tmp
+/restraint_diag_boot.json
+/restraint_diag_run.json
+*.tmp
+*.log
+*.csv
+
+# Diagnostic captures and development backups
+/mpr121_integration_*/
+/mpr121_record_*/
+/handle_adc_*/
+/diagnostic_captures/
+/deployment_backups/
+*.previous.py
+*.previous.json
+main_before_*.py
+restraint_main_mpr121_before_*.py
